@@ -1,0 +1,17 @@
+# --- Base e REST ---
+fastapi==0.103.1
+uvicorn==0.23.2
+sqlalchemy==2.0.20
+psycopg2-binary
+
+# --- GraphQL ---
+strawberry-graphql
+
+# --- gRPC ---
+grpcio
+grpcio-tools
+
+# --- SOAP ---
+spyne
+lxml
+werkzeug

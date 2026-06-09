@@ -1,0 +1,17 @@
+# Node.js
+node_modules/
+npm-debug.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Docker e SO
+.env
+.DS_Store
+
+# Banco de Dados Local
+*.sqlite3
+pgdata/

@@ -1,0 +1,6 @@
+locust==2.15.1
+grpcio
+grpcio-tools
+protobuf
+zeep
+lxml

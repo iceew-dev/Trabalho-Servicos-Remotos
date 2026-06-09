@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # --- BANCO DE DADOS ---
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: streaming_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # --- APIs NODE.JS ---
+  node-rest:
+    build: ./node-app
+    command: sh -c "npx prisma db push && npm run start:rest"
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/streaming_db?schema=public
+    depends_on:
+      - db
+
+  node-graphql:
+    build: ./node-app
+    command: npm run start:graphql
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/streaming_db?schema=public
+    depends_on:
+      - db
+
+  node-soap:
+    build: ./node-app
+    command: npm run start:soap
+    ports:
+      - "3002:3002"
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/streaming_db?schema=public
+    depends_on:
+      - db
+
+  node-grpc:
+    build: ./node-app
+    command: npm run start:grpc
+    ports:
+      - "50051:50051"
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/streaming_db?schema=public
+    depends_on:
+      - db
+
+  # --- APIs PYTHON ---
+  python-rest:
+    build: ./python-app
+    command: uvicorn src.apis.rest_app:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  python-graphql:
+    build: ./python-app
+    command: uvicorn src.apis.graphql_app:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+
+  python-soap:
+    build: ./python-app
+    command: python -m src.apis.soap_app
+    ports:
+      - "8002:8002"
+    depends_on:
+      - db
+
+  python-grpc:
+    build: ./python-app
+    command: python -m src.apis.grpc_app
+    ports:
+      - "50052:50052"
+    depends_on:
+      - db
+
+  # --- TESTES DE CARGA ---
+  locust:
+    build: ./load-tests
+    ports:
+      - "8089:8089"
+    volumes:
+      # Monta a pasta onde estão os arquivos .py gerados para dentro do container
+      - ./python-app/src/apis:/app/apis
+      - ./load-tests:/app
+    environment:
+      # Adiciona o diretório /app/apis ao caminho de busca do Python
+      - PYTHONPATH=/app:/app/apis
+    depends_on:
+      - node-rest
+      - python-rest
+
+volumes:
+  pgdata:

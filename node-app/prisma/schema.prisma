@@ -1,0 +1,36 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Usuario {
+  id        Int        @id @default(autoincrement())
+  nome      String
+  idade     Int
+  playlists Playlist[]
+
+  @@map("usuarios")
+}
+
+model Musica {
+  id        Int        @id @default(autoincrement())
+  nome      String
+  artista   String
+  playlists Playlist[] // Relação N:M (Muitos para Muitos) implícita do Prisma
+
+  @@map("musicas")
+}
+
+model Playlist {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  usuarioId Int      @map("usuario_id")
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  musicas   Musica[] // Relação N:M implícita do Prisma
+
+  @@map("playlists")
+}
