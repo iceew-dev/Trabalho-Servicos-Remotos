@@ -444,7 +444,7 @@ SOAP e GraphQL apresentam degradação severa sob alta concorrência.
 
 ## Figura 3 – Comparativo de Throughput (RPS)
 
-![Figura 3](graficos/grafico_rps.png)
+![Figura 3](graficos/graficos_rps.png)
 
 Node.js mantém vazão significativamente superior ao Python.
 

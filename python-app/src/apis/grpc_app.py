@@ -1,52 +1,76 @@
 import grpc
 from concurrent import futures
-import sys
 import os
+import sys
+import psycopg2
+from src.database import SessionLocal # Importando do seu arquivo de configuração
 
-# Adiciona o diretório atual ao path para importar os arquivos gerados
+# Adiciona o diretório ao path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import streaming_pb2
 import streaming_pb2_grpc
 
-from .. import services
-from ..database import SessionLocal
-
 class StreamingServiceServicer(streaming_pb2_grpc.StreamingServiceServicer):
+    
     def ListarUsuarios(self, request, context):
-        db = SessionLocal()
-        usuarios = services.listar_usuarios(db)
-        db.close()
-        return streaming_pb2.UsuarioList(usuarios=[streaming_pb2.Usuario(**u.__dict__) for u in usuarios])
-
-    def ListarMusicas(self, request, context):
-        db = SessionLocal()
+        print("DEBUG: Iniciando ListarUsuarios...")
+        conn = None
         try:
-            # 1. Busca os objetos crus do banco de dados (SQLAlchemy)
-            musicas_db = services.listar_musicas(db)
+            # Conexão direta com o banco via psycopg2 para garantir
+            db_url = os.getenv("DATABASE_URL", "postgresql://admin:password@db:5432/streaming_db")
+            conn = psycopg2.connect(db_url)
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, idade FROM usuarios")
+            rows = cur.fetchall()
             
-            # 2. Cria uma lista vazia para colocar as músicas formatadas para o gRPC
-            musicas_grpc = []
+            print(f"DEBUG: Usuários encontrados no banco: {len(rows)}")
             
-            # 3. Faz a tradução manual: campo por campo
-            for m in musicas_db:
-                musica_formatada = streaming_pb2.Musica(
-                    id=m.id,
-                    nome=m.nome,
-                    artista=m.artista
-                    # Coloque aqui os outros campos que estiverem no seu arquivo .proto
-                )
-                musicas_grpc.append(musica_formatada)
+            response = streaming_pb2.UsuarioList()
+            for row in rows:
+                # O ID, NOME, IDADE devem bater com seu .proto
+                usuario = response.usuarios.add()
+                usuario.id = int(row[0])
+                usuario.nome = str(row[1])
+                usuario.idade = int(row[2])
             
-            # 4. Devolve a resposta oficial do gRPC
-            return streaming_pb2.MusicaList(musicas=musicas_grpc)
+            cur.close()
+            return response
             
         except Exception as e:
+            print(f"ERRO CRÍTICO: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
-            return streaming_pb2.MusicaList() # <-- Aqui também precisava mudar!
+            return streaming_pb2.UsuarioList()
         finally:
-            db.close()
+            if conn:
+                conn.close()
 
+    def ListarMusicas(self, request, context):
+        conn = None
+        try:
+            db_url = os.getenv("DATABASE_URL", "postgresql://admin:password@db:5432/streaming_db")
+            conn = psycopg2.connect(db_url)
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, artista FROM musicas") # Certifique-se que a tabela é 'musicas'
+            rows = cur.fetchall()
+            
+            print(f"DEBUG: Músicas encontradas no banco: {len(rows)}")
+            
+            response = streaming_pb2.MusicaList()
+            for row in rows:
+                musica = response.musicas.add()
+                musica.id = int(row[0])
+                musica.nome = str(row[1])
+                musica.artista = str(row[2])
+            
+            cur.close()
+            return response
+        except Exception as e:
+            print(f"ERRO MÚSICAS: {e}")
+            return streaming_pb2.MusicaList()
+        finally:
+            if conn: conn.close()
+            
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     streaming_pb2_grpc.add_StreamingServiceServicer_to_server(StreamingServiceServicer(), server)

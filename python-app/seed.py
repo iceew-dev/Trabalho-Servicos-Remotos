@@ -10,28 +10,35 @@ def seed_db():
         conn = psycopg2.connect(DB_URL)
         cursor = conn.cursor()
 
-        print("Criando tabela 'musicas'...")
+        print("Criando tabelas...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS musicas (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) NOT NULL,
                 artista VARCHAR(255) NOT NULL
-            )
+            );
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                idade INTEGER NOT NULL
+            );
         """)
 
         print("Limpando dados antigos...")
-        cursor.execute("TRUNCATE TABLE musicas RESTART IDENTITY CASCADE;")
+        cursor.execute("TRUNCATE TABLE musicas, usuarios RESTART IDENTITY CASCADE;")
 
-        print("Preparando 10.000 registros...")
-        registros = [(f"Música {i}", f"Artista {i % 100}") for i in range(1, 10001)]
+        print("Preparando registros...")
+        musicas = [(f"Música {i}", f"Artista {i % 100}") for i in range(1, 10001)]
+        usuarios = [(f"Usuário {i}", 20 + (i % 30)) for i in range(1, 101)]
         
-        print("Inserindo no PostgreSQL...")
-        execute_values(cursor, "INSERT INTO musicas (nome, artista) VALUES %s", registros)
+        print("Inserindo dados...")
+        execute_values(cursor, "INSERT INTO musicas (nome, artista) VALUES %s", musicas)
+        execute_values(cursor, "INSERT INTO usuarios (nome, idade) VALUES %s", usuarios)
 
         conn.commit()
         cursor.close()
         conn.close()
-        print("Sucesso! Banco de dados populado com 10.000 músicas.")
+        print("Sucesso! Banco populado com músicas e usuários.")
 
     except Exception as e:
         print(f"Erro ao popular o banco: {e}")
