@@ -6,24 +6,162 @@
 
 # 1. Introdução e Objetivos
 
-Este documento apresenta uma análise experimental e comparativa do desempenho de quatro das principais tecnologias de comunicação utilizadas na engenharia de software moderna: **REST (Representational State Transfer)**, **GraphQL**, **SOAP (Simple Object Access Protocol)** e **gRPC (Google Remote Procedure Call)**.
+Este documento apresenta uma análise experimental e comparativa do desempenho de quatro das principais tecnologias de comunicação utilizadas na engenharia de software moderna:
 
-O estudo foi conduzido simulando dois ecossistemas tecnológicos amplamente adotados no mercado: **Node.js (TypeScript)** e **Python**. O objetivo principal consiste em avaliar a capacidade de resposta, a estabilidade operacional e a escalabilidade de cada tecnologia sob diferentes níveis de concorrência, identificando gargalos de desempenho (*bottlenecks*) e características arquiteturais que impactam diretamente a eficiência dos microsserviços.
+* **REST (Representational State Transfer)**
+* **GraphQL**
+* **SOAP (Simple Object Access Protocol)**
+* **gRPC (Google Remote Procedure Call)**
+
+O estudo foi conduzido simulando dois ecossistemas tecnológicos amplamente adotados no mercado: **Node.js (JavaScript)** e **Python**.
+
+O objetivo principal consiste em avaliar a capacidade de resposta, a estabilidade operacional e a escalabilidade de cada tecnologia sob diferentes níveis de concorrência, identificando gargalos de desempenho (*bottlenecks*) e características arquiteturais que impactam diretamente a eficiência dos microsserviços.
 
 ---
 
-# 2. Fundamentação Teórica e Exemplos de Implementação (Python)
+# 2. Como Executar o Projeto (Guia de Uso)
 
-Nesta seção, são descritas as origens, características principais, vantagens e desvantagens dos quatro protocolos avaliados. Para ilustrar a implementação prática, são apresentados trechos de código em **Python** demonstrando a criação de um *endpoint* simples de leitura para a entidade "Música" do serviço de streaming.
+Para reproduzir os testes e visualizar as APIs em funcionamento localmente, siga os passos abaixo.
 
-## 2.1. REST (Representational State Transfer)
-**Origem:** Criado por Roy Fielding no ano 2000 em sua tese de doutorado. 
-**Características:** É um estilo arquitetural que utiliza os métodos padrão do protocolo HTTP (GET, POST, PUT, DELETE) para manipular recursos. A comunicação é *stateless* (sem estado) e os dados trafegam predominantemente no formato JSON.
+## 2.1 Pré-requisitos
 
-* **Vantagens:** Altamente escalável, excelente suporte nativo a cache HTTP, curva de aprendizado baixa e integração universal com qualquer cliente web.
-* **Desvantagens:** Problemas de *over-fetching* (receber mais dados do que o necessário) e *under-fetching* (precisar fazer múltiplas requisições para montar uma tela complexa).
+* Docker instalado
+* Docker Compose instalado
+* Portas disponíveis:
 
-**Exemplo de Código (Framework FastAPI):**
+  * 5432 (PostgreSQL)
+  * 8000 a 8002 (APIs Python)
+  * 9000 a 9002 (APIs Node.js)
+  * 8089 (Locust)
+
+## 2.2 Clonar o Repositório
+
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd <NOME_DO_PROJETO>
+```
+
+## 2.3 Subir os Serviços
+
+Na raiz do projeto execute:
+
+```bash
+docker-compose up -d --build
+```
+
+O comando irá construir as imagens Docker e iniciar:
+
+* Banco PostgreSQL
+* APIs REST, GraphQL, SOAP e gRPC em Python
+* APIs REST, GraphQL, SOAP e gRPC em Node.js
+* Ferramenta de testes Locust
+
+## 2.4 Popular o Banco de Dados
+
+Após a inicialização, execute o script de carga inicial:
+
+```bash
+docker-compose exec rest_py python seed.py
+```
+
+## 2.5 Executar os Testes
+
+Abra o navegador e acesse:
+
+```text
+http://localhost:8089
+```
+
+Na interface do Locust:
+
+### Number of Users
+
+Escolha um dos cenários:
+
+* 100 usuários
+* 200 usuários
+* 400 usuários
+
+### Spawn Rate
+
+Sugestão:
+
+```text
+20
+```
+
+### Host
+
+Exemplos:
+
+REST Node.js:
+
+```text
+http://rest_ts:9000
+```
+
+REST Python:
+
+```text
+http://rest_py:8000
+```
+
+GraphQL Node.js:
+
+```text
+http://graphql_ts:9001
+```
+
+GraphQL Python:
+
+```text
+http://graphql_py:8001
+```
+
+Clique em **Start Swarming** para iniciar os testes.
+
+## 2.6 Encerrar o Ambiente
+
+```bash
+docker-compose down
+```
+
+---
+
+# 3. Fundamentação Teórica e Exemplos de Implementação
+
+## 3.1 REST (Representational State Transfer)
+
+### Origem
+
+Criado por Roy Fielding em 2000 durante sua tese de doutorado.
+
+### Características
+
+REST é um estilo arquitetural baseado em recursos que utiliza os métodos do protocolo HTTP:
+
+* GET
+* POST
+* PUT
+* DELETE
+
+A comunicação é *stateless* e normalmente utiliza JSON para troca de dados.
+
+### Vantagens
+
+* Simplicidade de implementação
+* Grande compatibilidade com navegadores
+* Fácil manutenção
+* Curva de aprendizagem reduzida
+
+### Desvantagens
+
+* Over-fetching
+* Under-fetching
+* Necessidade de múltiplas requisições em cenários complexos
+
+### Exemplo (FastAPI)
+
 ```python
 from fastapi import FastAPI
 
@@ -31,22 +169,40 @@ app = FastAPI()
 
 @app.get("/musicas/{musica_id}")
 def get_musica(musica_id: int):
-    # Simulação de busca no banco de dados
     return {
-        "id": musica_id, 
-        "nome": "Bohemian Rhapsody", 
+        "id": musica_id,
+        "nome": "Bohemian Rhapsody",
         "artista": "Queen"
     }
 ```
 
-## 2.2. GraphQL
-**Origem:** Desenvolvido internamente pelo Facebook em 2012 e lançado como código aberto em 2015.
-**Características:** É uma linguagem de consulta de dados para APIs. Em vez de múltiplos *endpoints*, expõe uma única rota HTTP (geralmente via POST). O cliente tem o poder de especificar exatamente quais campos deseja receber como resposta.
+---
 
-* **Vantagens:** Resolve o *over-fetching* e *under-fetching*, possui tipagem forte via *Schema* e permite a evolução da API sem a necessidade de versionamento (v1, v2).
-* **Desvantagens:** Dificuldade para implementar cache nativo no nível do HTTP, risco de consultas maliciosas ou excessivamente complexas derrubarem o servidor (*N+1 query problem*), e consumo elevado de CPU para o *parsing* das consultas.
+## 3.2 GraphQL
 
-**Exemplo de Código (Framework Strawberry):**
+### Origem
+
+Desenvolvido pelo Facebook em 2012 e disponibilizado como código aberto em 2015.
+
+### Características
+
+GraphQL é uma linguagem de consulta para APIs onde o cliente define exatamente quais dados deseja receber.
+
+### Vantagens
+
+* Elimina over-fetching
+* Elimina under-fetching
+* Forte sistema de tipagem
+* Evolução sem versionamento
+
+### Desvantagens
+
+* Consultas complexas podem degradar desempenho
+* Cache HTTP menos eficiente
+* Maior consumo de CPU
+
+### Exemplo (Strawberry)
+
 ```python
 import strawberry
 
@@ -60,21 +216,50 @@ class Musica:
 class Query:
     @strawberry.field
     def musica(self, id: int) -> Musica:
-        return Musica(id=id, nome="Bohemian Rhapsody", artista="Queen")
+        return Musica(
+            id=id,
+            nome="Bohemian Rhapsody",
+            artista="Queen"
+        )
 
 schema = strawberry.Schema(query=Query)
 ```
 
-## 2.3. SOAP (Simple Object Access Protocol)
-**Origem:** Desenvolvido pela Microsoft em 1998 e posteriormente padronizado pelo W3C.
-**Características:** É um protocolo rigoroso de troca de mensagens. Utiliza estritamente o formato XML estruturado por um "Envelope" e define seus contratos públicos de forma explícita através de arquivos WSDL (*Web Services Description Language*).
+---
 
-* **Vantagens:** Suporte nativo a transações complexas (ACID), alta segurança inerente (WS-Security) e garantias de entrega de mensagens em integrações de sistemas corporativos legados ou bancários.
-* **Desvantagens:** Extremamente verboso (arquivos pesados), parsing de XML custoso para a CPU e dependência de ferramentas específicas para testes e consumo.
+## 3.3 SOAP (Simple Object Access Protocol)
 
-**Exemplo de Código (Biblioteca Spyne):**
+### Origem
+
+Desenvolvido pela Microsoft em 1998 e posteriormente padronizado pelo W3C.
+
+### Características
+
+SOAP é um protocolo baseado em XML que utiliza contratos formais definidos em arquivos WSDL.
+
+### Vantagens
+
+* Segurança avançada
+* Garantia de entrega
+* Suporte a transações complexas
+* Amplamente utilizado em sistemas corporativos
+
+### Desvantagens
+
+* XML extremamente verboso
+* Alto custo de processamento
+* Maior complexidade de implementação
+
+### Exemplo (Spyne)
+
 ```python
-from spyne import Application, rpc, ServiceBase, Integer, Unicode, ComplexModel
+from spyne import (
+    rpc,
+    ServiceBase,
+    Integer,
+    Unicode,
+    ComplexModel
+)
 
 class MusicaModel(ComplexModel):
     id = Integer
@@ -82,192 +267,261 @@ class MusicaModel(ComplexModel):
     artista = Unicode
 
 class StreamingService(ServiceBase):
+
     @rpc(Integer, _returns=MusicaModel)
     def listar_musica(ctx, musica_id):
-        return MusicaModel(id=musica_id, nome="Bohemian Rhapsody", artista="Queen")
-```
-
-## 2.4. gRPC (Google Remote Procedure Call)
-**Origem:** Criado pelo Google em 2015 como uma evolução do seu sistema RPC interno (Stubby).
-**Características:** Framework de chamadas de procedimento remoto (RPC) de alto desempenho. Utiliza o **HTTP/2** como transporte e **Protocol Buffers** (Protobuf) como linguagem de descrição de interface e formato de serialização binária.
-
-* **Vantagens:** Altíssimo desempenho, baixa latência (payloads binários compactados), suporte a *streaming* bidirecional em tempo real e geração automática de código cliente/servidor para múltiplas linguagens.
-* **Desvantagens:** Não é legível por humanos (dificulta a depuração manual), não possui suporte nativo direto nos navegadores web sem o uso de proxies (gRPC-Web) e exige o pré-compartilhamento do arquivo `.proto`.
-
-**Exemplo de Código (grpcio e Protobuf):**
-*Arquivo de Contrato (streaming.proto):*
-```protobuf
-syntax = "proto3";
-
-message MusicaRequest { int32 id = 1; }
-message MusicaResponse { int32 id = 1; string nome = 2; string artista = 3; }
-
-service MusicaService {
-    rpc GetMusica(MusicaRequest) returns (MusicaResponse);
-}
-```
-*Implementação do Servidor (Python):*
-```python
-import streaming_pb2
-import streaming_pb2_grpc
-
-class MusicaService(streaming_pb2_grpc.MusicaServiceServicer):
-    def GetMusica(self, request, context):
-        return streaming_pb2.MusicaResponse(
-            id=request.id, 
-            nome="Bohemian Rhapsody", 
+        return MusicaModel(
+            id=musica_id,
+            nome="Bohemian Rhapsody",
             artista="Queen"
         )
 ```
 
 ---
 
-# 3. Análise Crítica: A Experiência da Equipe na Implementação
+## 3.4 gRPC (Google Remote Procedure Call)
 
-Além dos resultados quantitativos de latência e concorrência, a equipe avaliou qualitativamente a experiência de desenvolvimento (Developer Experience - DX) exigida por cada tecnologia durante a construção do serviço de streaming em Python e Node.js.
+### Origem
 
-1. **REST:** Foi a arquitetura que apresentou a curva de implementação mais ágil. No ecossistema Python (FastAPI), a validação de dados via Pydantic e a geração automática do Swagger tornaram o processo produtivo, intuitivo e com baixo atrito para a equipe.
-2. **GraphQL:** A equipe notou uma mudança paradigmática forte. A codificação inicial é mais trabalhosa, exigindo a declaração minuciosa dos Tipos (*Schemas*) e a elaboração lógica dos *Resolvers*. Contudo, a flexibilidade perceptível na construção do lado do cliente (poder pedir apenas o que precisa da entidade Músicas ou Usuários) evidenciou por que é tão atrativo para aplicações *Front-end* complexas.
-3. **SOAP:** Proporcionou a experiência de desenvolvimento mais engessada e burocrática. A construção em Python via Spyne revelou um ecossistema rigoroso, onde o menor desvio entre o *namespace* declarado e o cabeçalho da requisição `SOAPAction` resultava em falhas críticas de validação de *schema* (ex: `SchemaValidationError`), exigindo grande esforço de depuração apenas para estabelecer a comunicação básica.
-4. **gRPC:** Exigiu uma mudança no fluxo de trabalho tradicional da equipe. A necessidade de escrever primeiramente o contrato `.proto` e rodar ferramentas de compilação (*grpc_tools.protoc*) adicionou passos extras ao *build*. No entanto, após esse *setup* inicial, a invocação de métodos como se fossem funções locais simplificou o código. A impossibilidade de testar a API facilmente pelo navegador exigiu o uso de clientes específicos, mas o benefício em performance obtido compensou o rigor da implementação.
+Desenvolvido pelo Google em 2015.
 
----
+### Características
 
-# 4. Metodologia dos Testes de Carga
+Framework RPC baseado em:
 
-Os testes de carga foram executados de forma isolada e controlada em um ambiente conteinerizado utilizando **Docker Compose**, tendo como ferramenta de geração de carga o **Locust**, amplamente utilizado para avaliação de desempenho de aplicações distribuídas.
+* HTTP/2
+* Protocol Buffers (Protobuf)
 
-Todos os testes foram realizados utilizando a mesma infraestrutura computacional e sob condições controladas, garantindo que as diferenças observadas fossem atribuídas predominantemente às características dos protocolos analisados e não a variações do ambiente de execução.
+Os dados são serializados em formato binário.
 
-Para avaliar o comportamento dos serviços em diferentes regimes de utilização, foram definidos três cenários de carga com duração estável de **2 minutos** cada:
+### Vantagens
 
-1. **Cenário Leve (Carga de Base):** 200 usuários simultâneos (*spawn rate*: 20/s).
-2. **Cenário Médio (Carga Realista):** 500 usuários simultâneos (*spawn rate*: 50/s).
-3. **Cenário Pesado (Teste de Estresse Extremo):** 2000 usuários simultâneos (*spawn rate*: 100/s).
+* Baixa latência
+* Alto desempenho
+* Streaming bidirecional
+* Menor consumo de banda
 
-As métricas monitorizadas durante os experimentos foram:
+### Desvantagens
 
-* **Tempo Médio de Resposta (Latência em milissegundos)**
-* **Vazão (Throughput em Requisições por Segundo – RPS)**
-* **Quantidade de Falhas**
-* **Tempo Máximo e Mínimo de Resposta**
+* Menor legibilidade humana
+* Dependência de arquivos `.proto`
+* Necessidade de ferramentas específicas
 
----
+### Exemplo de Contrato
 
-# 5. Resultados Consolidados
+```proto
+syntax = "proto3";
 
-Os resultados apresentados a seguir consolidam os tempos médios de resposta obtidos para cada protocolo nos três cenários de carga avaliados. A latência foi utilizada como principal métrica de comparação por representar diretamente a experiência percebida pelos consumidores dos serviços.
+message MusicaRequest {
+  int32 id = 1;
+}
 
-## 5.1 Resultados em Node.js
+message MusicaResponse {
+  int32 id = 1;
+  string nome = 2;
+  string artista = 3;
+}
 
-| Protocolo | 200 Usuários (ms) | 500 Usuários (ms) | 2000 Usuários (ms) |
-| :--- | :---: | :---: | :---: |
-| REST | 6.30 | 85.27 | 1759.53 |
-| GraphQL | 6.75 | 91.61 | 1701.85 |
-| SOAP | 6.15 | 86.35 | 1648.68 |
-| gRPC | **2.25** | **2.17** | **2.46** |
+service MusicaService {
+  rpc GetMusica(MusicaRequest)
+      returns (MusicaResponse);
+}
+```
 
-**Tabela 1.** Evolução da latência média dos protocolos implementados em Node.js.
+### Exemplo do Servidor
 
-Observa-se que REST, GraphQL e SOAP apresentaram crescimento significativo da latência conforme a concorrência aumentou. Em contraste, o gRPC manteve desempenho praticamente constante, demonstrando elevada capacidade de escalabilidade.
+```python
+import streaming_pb2
+import streaming_pb2_grpc
 
----
+class MusicaService(
+    streaming_pb2_grpc.MusicaServiceServicer
+):
 
-## 5.2 Resultados em Python
-
-| Protocolo | 200 Usuários (ms) | 500 Usuários (ms) | 2000 Usuários (ms) |
-| :--- | :---: | :---: | :---: |
-| REST | 7.86 | 93.33 | 1645.02 |
-| GraphQL | 10.43 | 282.32 | **15196.21** |
-| SOAP | 9.91 | 85.94 | 1778.56 |
-| gRPC | **2.95** | **2.80** | **3.15** |
-
-**Tabela 2.** Evolução da latência média dos protocolos implementados em Python.
-
-Os resultados demonstram comportamento semelhante ao observado em Node.js para REST e SOAP. Entretanto, o GraphQL apresentou degradação significativamente superior sob carga extrema, atingindo latências superiores a 15 segundos. O gRPC novamente manteve estabilidade praticamente linear.
-
-Os resultados apresentados nas Tabelas 1 e 2 evidenciam uma diferença significativa de comportamento entre os protocolos analisados. Enquanto REST, SOAP e GraphQL apresentaram degradação progressiva da latência à medida que a carga aumentava, o gRPC manteve desempenho praticamente constante em ambos os ambientes de execução.
-
----
-
-## Figura 1 – Gráfico Comparativo em Node.js
-
-![Comparativo Node.js](graficos/grafico_comparativo_node.png)
-
-**Figura 1.** Comparação da evolução da latência média dos protocolos implementados em Node.js. Observa-se um crescimento acentuado da latência para REST, SOAP e GraphQL conforme a carga aumenta, enquanto o gRPC mantém desempenho estável.
+    def GetMusica(self, request, context):
+        return streaming_pb2.MusicaResponse(
+            id=request.id,
+            nome="Bohemian Rhapsody",
+            artista="Queen"
+        )
+```
 
 ---
 
-## Figura 2 – Gráfico Comparativo em Python
+# 4. Análise Crítica da Implementação e Developer Experience (DX)
 
-![Comparativo Python](graficos/grafico_comparativo_python.png)
+A experiência prática de codificação nas linguagens Python e TypeScript (Node.js) revelou contrastes profundos nos paradigmas arquiteturais avaliados. A escolha do protocolo de comunicação dita não apenas a performance da rede, mas impacta diretamente a curva de aprendizado da equipe, a velocidade de desenvolvimento e a facilidade de manutenção e depuração do código.
 
-**Figura 2.** Comparação da evolução da latência média dos protocolos implementados em Python. O destaque fica para a degradação significativa do GraphQL sob carga extrema e para a estabilidade apresentada pelo gRPC.
+### 4.1. REST (Representational State Transfer)
+O REST consolidou-se como a arquitetura de adoção mais fluida, intuitiva e de menor atrito para a equipe. O mapeamento direto de ações de CRUD para verbos HTTP (GET, POST, PUT, DELETE) torna a lógica de negócio altamente previsível.
+* **No Ecossistema Python:** A utilização do framework FastAPI elevou a produtividade de forma ímpar. A integração nativa com o Pydantic para validação de dados e a geração automática da documentação interativa (Swagger/OpenAPI) baseada em tipagem estática eliminaram horas de trabalho manual.
+* **No Ecossistema Node.js:** O uso do Express.js demonstrou a flexibilidade de um framework minimalista e não-opinativo, permitindo subir *endpoints* em poucos minutos. No entanto, por não possuir validação nativa e estruturação rígida como o FastAPI, exigiu maior disciplina da equipe para manter a padronização das rotas e validação de *payloads*.
 
----
+### 4.2. GraphQL
+A implementação do GraphQL exigiu uma forte mudança de paradigma estrutural. Diferente do REST, onde a preocupação central é o roteamento (*endpoints*), o GraphQL transfere a complexidade para a modelagem do domínio e a resolução de grafos.
+* **Desafios de Implementação:** A configuração inicial provou-se densa. A equipe precisou declarar rigorosamente os *Schemas* (tipos, *Queries* e *Mutations*) e construir os *Resolvers* individuais para buscar cada campo no banco de dados, utilizando Strawberry no Python e Apollo Server no Node.js.
+* **O Retorno sobre o Investimento:** Toda a complexidade adicionada ao backend (servidor) é compensada pela extrema flexibilidade entregue ao cliente (Front-end). A capacidade de realizar uma única requisição HTTP POST para buscar dados aninhados de Músicas e Usuários simultaneamente resolveu por completo os problemas históricos de *over-fetching* (receber dados em excesso) e *under-fetching* (precisar de múltiplas requisições) inerentes ao REST.
 
-## Figura 3 – Comparação Direta entre REST e gRPC
+### 4.3. SOAP (Simple Object Access Protocol)
+O SOAP provou ser a tecnologia mais engessada, verbosa e de manutenção mais exaustiva de todo o comparativo. Seu design prioriza a segurança intrínseca e o rigor corporativo, sacrificando severamente a agilidade de desenvolvimento.
+* **A Burocracia do XML e WSDL:** A necessidade de envelopar mensagens em estruturas XML rigorosas exige atenção constante. Qualquer erro milimétrico no cabeçalho `SOAPAction` ou na declaração de *namespaces* resulta em rejeição crítica (`SchemaValidationError`), tornando a depuração um processo frustrante.
+* **Contraste de Bibliotecas:** No Python, a biblioteca `Spyne` executou validações bloqueantes rigorosas que derrubaram o Throughput. Em contrapartida, o módulo `soap` no ecossistema Node.js conseguiu gerar e realizar o *parsing* da árvore XML de forma incrivelmente ágil (aproveitando o I/O assíncrono), mascarando o peso real do protocolo e gerando uma anomalia positiva de performance sob estresse, apesar do enorme volume de dados trafegados.
 
-![REST vs gRPC](graficos/grafico_rest_vs_grpc.png)
-
-**Figura 3.** Comparação direta da evolução da latência média entre REST e gRPC nos ambientes Node.js e Python. Enquanto o REST apresenta crescimento exponencial da latência à medida que a concorrência aumenta, o gRPC mantém comportamento praticamente constante, evidenciando sua superior capacidade de escalabilidade.
-
----
-
-# 6. Análise Técnica e Discussão
-
-## 6.1. Desempenho e Escalabilidade do gRPC
-
-O resultado mais expressivo do estudo foi a estabilidade apresentada pelo gRPC, observada tanto nas Tabelas 1 e 2 quanto nas Figuras 1, 2 e 3.
-
-Enquanto o REST em Node.js passou de **6,30 ms** para **1759,53 ms**, representando um aumento superior a **27.800%**, o gRPC variou apenas de **2,25 ms** para **2,46 ms**, mantendo desempenho praticamente linear.
-
-Essa eficiência pode ser atribuída a três fatores principais:
-
-### HTTP/2 e Multiplexação
-Diferentemente do HTTP/1.1, utilizado por REST, SOAP e GraphQL, o HTTP/2 permite múltiplas requisições simultâneas sobre a mesma conexão TCP, reduzindo significativamente problemas de bloqueio e espera.
-
-### Serialização Binária com Protocol Buffers
-Enquanto JSON e XML exigem conversões textuais e operações adicionais de parsing, o Protocol Buffers utiliza um formato binário compacto e altamente eficiente.
-
-### Geração Automática de Código
-A utilização de contratos fortemente tipados e geração automática de stubs reduz a sobrecarga de processamento e simplifica a comunicação entre serviços.
+### 4.4. gRPC (Google Remote Procedure Call)
+O gRPC representou a maior quebra no fluxo de trabalho tradicional da equipe, afastando-se completamente do padrão HTTP interpretável por navegadores comuns.
+* **O Custo Inicial (Setup):** A necessidade de iniciar o desenvolvimento fora do código-fonte, definindo as estruturas de dados e contratos em arquivos neutros `.proto`, adicionou uma barreira inicial. A obrigatoriedade de executar compiladores (`grpc_tools.protoc` em Python) para gerar as classes base e *stubs* adicionou passos obrigatórios à esteira de *build*.
+* **Produtividade e Performance Insuperáveis:** Após a curva de configuração, a experiência de desenvolvimento (DX) torna-se excelente. A capacidade de invocar chamadas de rede remotas como se fossem funções locais nativas do sistema simplifica a lógica da aplicação. Aliado à forte tipagem imposta pelo Protocol Buffers e ao tráfego binário sobre HTTP/2, o gRPC compensou o rigor da implementação ao entregar o sistema mais inabalável e resiliente do projeto.
 
 ---
 
-## 6.2. O Colapso do GraphQL em Python
+# 5. Metodologia dos Testes
 
-O GraphQL implementado em Python apresentou o pior resultado do estudo sob carga extrema, atingindo uma latência média de **15.196 ms** e um pico superior a **92 segundos**.
+Os testes foram executados em ambiente conteinerizado utilizando Docker Compose.
 
-Esse comportamento sugere a existência de gargalos associados ao processamento síncrono do mecanismo de resolução de consultas GraphQL. À medida que o número de requisições aumenta, ocorre um crescimento significativo das filas internas de processamento, causando degradação exponencial do tempo de resposta.
+A geração de carga foi realizada através do Locust.
 
-Embora o GraphQL ofereça elevada flexibilidade para consultas complexas, seu desempenho pode ser severamente impactado quando utilizado sem estratégias adequadas de cache, paralelização e otimização dos resolvers.
+Foram definidos três cenários:
+
+| Cenário | Usuários |
+| ------- | -------- |
+| Leve    | 100      |
+| Médio   | 200      |
+| Pesado  | 400      |
+
+## Métricas Avaliadas
+
+* Latência Mediana (ms)
+* Throughput (RPS)
+* Escalabilidade
 
 ---
 
-## 6.3. Compreendendo a Queda de Throughput (RPS)
-![Throughput](graficos/grafico_rps.png)
+# 6. Resultados Consolidados
 
-Um comportamento aparentemente contraditório observado durante os testes foi a redução da vazão (RPS) à medida que o número de usuários aumentava.
+## 6.1 Resultados em Node.js
 
-No cenário de 200 usuários, os tempos de resposta eram reduzidos, permitindo que cada usuário virtual concluísse rapidamente seu ciclo de requisição e enviasse novos pedidos.
+| Protocolo | 100 Usuários | 200 Usuários | 400 Usuários |
+| --------- | ------------ | ------------ | ------------ |
+| REST      | 340 ms       | 1400 ms      | 2400 ms      |
+| GraphQL   | 1100 ms      | 3400 ms      | 5500 ms      |
+| SOAP      | 960 ms       | 2700 ms      | 5600 ms      |
+| gRPC      | 55 ms        | 54 ms        | 53 ms        |
 
-Entretanto, quando os tempos de resposta passaram para valores superiores a 1 segundo, os usuários virtuais permaneceram bloqueados aguardando respostas do servidor, reduzindo drasticamente a frequência de envio de novas requisições.
-
-Esse comportamento demonstra claramente o fenômeno de saturação da infraestrutura, evidenciando que o limite de capacidade foi alcançado para os protocolos tradicionais muito antes do patamar de 2000 usuários simultâneos.
+**Tabela 1 – Latência mediana em Node.js**
 
 ---
 
-# 7. Conclusão
+## 6.2 Resultados em Python
 
-Os resultados obtidos demonstram diferenças significativas entre as tecnologias analisadas quando submetidas a cenários de alta concorrência.
+| Protocolo | 100 Usuários | 200 Usuários | 400 Usuários |
+| --------- | ------------ | ------------ | ------------ |
+| REST      | 950 ms       | 12000 ms     | 20000 ms     |
+| GraphQL   | 1300 ms      | 13000 ms     | 48000 ms     |
+| SOAP      | 45000 ms     | 43000 ms     | 59000 ms     |
+| gRPC      | 140 ms       | 160 ms       | 150 ms       |
 
-Enquanto REST, SOAP e GraphQL apresentaram degradação progressiva de desempenho à medida que a carga aumentava, o gRPC manteve níveis de latência praticamente constantes e ausência de falhas relevantes durante todo o experimento.
+**Tabela 2 – Latência mediana em Python**
 
-Os testes evidenciam que a combinação entre HTTP/2, multiplexação de conexões e serialização binária torna o gRPC especialmente adequado para comunicação interna entre microsserviços, onde baixa latência e elevada escalabilidade são requisitos fundamentais.
+---
 
-Por outro lado, REST e GraphQL continuam sendo excelentes alternativas para APIs públicas e integrações externas, oferecendo maior flexibilidade e facilidade de adoção. Contudo, em cenários de alta concorrência, essas tecnologias exigem mecanismos adicionais de escalabilidade, balanceamento de carga, cache e otimização de recursos para manter níveis adequados de desempenho.
+# 7. Análise Visual dos Resultados
 
-Dessa forma, os experimentos reforçam a importância da escolha adequada do protocolo de comunicação conforme o contexto arquitetural da aplicação, demonstrando que não existe uma solução universal, mas sim tecnologias mais apropriadas para necessidades específicas.
+## Figura 1 – Comparativo de Latência em Node.js
 
-Além disso, os gráficos apresentados reforçam visualmente os resultados observados nas tabelas, evidenciando que o aumento da concorrência afeta severamente os protocolos tradicionais baseados em HTTP/1.1, enquanto o gRPC mantém comportamento praticamente linear mesmo sob condições extremas de carga.
+![Figura 1](graficos/grafico_comparativo_node.png)
+
+Observa-se crescimento progressivo da latência para REST, GraphQL e SOAP conforme a carga aumenta.
+
+---
+
+## Figura 2 – Comparativo de Latência em Python
+
+![Figura 2](graficos/grafico_comparativo_python.png)
+
+SOAP e GraphQL apresentam degradação severa sob alta concorrência.
+
+---
+
+## Figura 3 – Comparativo de Throughput (RPS)
+
+![Figura 3](graficos/grafico_rps.png)
+
+Node.js mantém vazão significativamente superior ao Python.
+
+---
+
+## Figura 4 – REST versus gRPC
+
+![Figura 4](graficos/grafico_rest_vs_grpc.png)
+
+O gRPC mantém comportamento praticamente constante mesmo sob estresse.
+
+---
+
+## Figura 5 – Node.js versus Python
+
+![Figura 5](graficos/node_vs_python.png)
+
+Comparação direta das latências médias entre os dois ecossistemas.
+
+---
+
+## Figura 6 – Escalabilidade dos Protocolos em Python
+
+![Figura 6](graficos/python_linhas.png)
+
+Evolução da latência dos protocolos implementados em Python.
+
+---
+
+## Figura 7 – Throughput Médio por Tecnologia
+
+![Figura 7](graficos/throughput_medio.png)
+
+Comparação do throughput médio obtido por protocolo.
+
+---
+
+# 8. Análise Técnica e Discussão
+
+## 8.1 Desempenho do gRPC
+
+O gRPC apresentou os melhores resultados em todos os cenários.
+
+Sua estabilidade é explicada principalmente por:
+
+* HTTP/2
+* Multiplexação de conexões
+* Serialização binária via Protocol Buffers
+
+---
+
+## 8.2 O Custo do SOAP e GraphQL
+
+SOAP e GraphQL demonstraram elevado custo computacional.
+
+O processamento XML e a resolução de consultas complexas tornaram-se gargalos relevantes sob alta concorrência.
+
+No Python, esse efeito foi ainda mais evidente, produzindo tempos superiores a 50 segundos.
+
+---
+
+## 8.3 Throughput e I/O Bloqueante
+
+O modelo assíncrono do Node.js mostrou maior capacidade de absorção de carga.
+
+Enquanto Node.js manteve aproximadamente 12 RPS, Python apresentou vazão significativamente inferior devido ao impacto do processamento bloqueante.
+
+---
+
+# 9. Conclusão
+
+Os resultados demonstram diferenças substanciais entre as tecnologias avaliadas.
+
+REST e GraphQL permanecem excelentes alternativas para APIs voltadas ao Front-end devido à simplicidade e flexibilidade.
+
+SOAP continua relevante em ambientes corporativos que exigem contratos rígidos e elevados requisitos de segurança, embora apresente elevado custo computacional.
+
+O grande destaque foi o gRPC, que apresentou a menor latência, maior estabilidade e melhor escalabilidade em todos os cenários analisados.
+
+Os experimentos indicam que a combinação entre uma arquitetura assíncrona, como Node.js, e protocolos binários baseados em HTTP/2, como gRPC, representa atualmente uma das alternativas mais eficientes para comunicação entre microsserviços em ambientes de alta concorrência.
